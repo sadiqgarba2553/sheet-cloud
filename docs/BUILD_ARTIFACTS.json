@@ -1,0 +1,16 @@
+[
+  {
+    "file": "releases/windows/sheet-cloud-0.1.0-win-x64.zip",
+    "bytes": 6693054,
+    "sha256": "e81967262c2d02c1c8238b0de86dfb97196f7d6a7fa2ac59a24b773ef9a06162",
+    "build": "unsigned Windows x64 release-mode alpha",
+    "installation_tested": false
+  },
+  {
+    "file": "releases/windows/Sheet-Cloud-0.1.0-x64-setup.exe",
+    "bytes": 5702200,
+    "sha256": "24b17f54f38ac8be1d7537db87364cae5128ddc86452e7ba93cafd2bb96fc480",
+    "build": "unsigned Windows x64 release-mode alpha",
+    "installation_tested": false
+  }
+]
