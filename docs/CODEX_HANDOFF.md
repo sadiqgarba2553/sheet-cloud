@@ -1,3 +1,5 @@
+> Codex review (4 November 2026): Read [CODEX_VERIFICATION.md](CODEX_VERIFICATION.md) for tested behavior, corrected claims and remaining limits. Earlier source-only claims are not proof of feature parity.
+
 # Sheet Cloud - Codex Handoff & Verification Guide
 
 This guide provides Codex with exact verification commands, branch details, and expected behaviors for testing Sheet Cloud.

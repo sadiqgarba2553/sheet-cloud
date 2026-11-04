@@ -1,19 +1,19 @@
 {
   "appId": "sheet-cloud",
   "repository": "sadiqgarba2553/sheet-cloud",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "sourceName": "Sheet-Cloud",
-  "title": "Sheet Cloud 0.1.0 - Windows alpha",
-  "notes": "First Windows alpha: new squircle spreadsheet logo, local workbook library and autosave, formulas and formatting, editable templates, local history, native workbook backups and basic XLSX/CSV exchange. Updated Windows build and launcher package systems. Charts are previews; limited Excel fidelity and no hosted collaboration.",
+  "title": "Sheet Cloud 0.2.0 — Office expansion alpha",
+  "notes": "Persistent range charts, static pivot summaries, live formula Goal Seek, text splitting, duplicate clearing and JSON exchange. Fixed XLSX merged-cell import, live-grid updates and responsive tools. Existing workbooks and green squircle branding are preserved. XLSX chart/pivot objects and full Excel parity are not included.",
   "localAssets": [
-    "releases/windows/sheet-cloud-0.1.0-win-x64.zip",
-    "releases/windows/Sheet-Cloud-0.1.0-x64-setup.exe"
+    "releases/windows/sheet-cloud-0.2.0-win-x64.zip",
+    "releases/windows/Sheet-Cloud-0.2.0-x64-setup.exe"
   ],
-  "unpackedDirectory": "releases/windows/managed",
+  "unpackedDirectory": "releases/windows/managed-0.2.0",
   "package": {
-    "name": "sheet-cloud-0.1.0-win-x64.zip",
+    "name": "sheet-cloud-0.2.0-win-x64.zip",
     "type": "zip",
-    "minimumLauncher": "0.7.1",
+    "minimumLauncher": "0.7.2",
     "executable": "sheet-cloud.exe"
   }
 }

@@ -41,13 +41,14 @@ import {
   Scenario,
   parseRange,
   colToLetters,
+  parseA1,
 } from './model';
 import { fromTemplate, templates } from './templates';
 import { store } from './store';
 import { download, isNative, openNative, writeNative } from './files';
 import { Modal } from './Modal';
 import { ChartView } from './ChartView';
-import { computePivotTable, writePivotToSheet, runGoalSeek, textToColumns, removeDuplicates } from './analysis';
+import { computePivotTable, writePivotToSheet, runGoalSeekAsync, textToColumns, removeDuplicates } from './analysis';
 import type { SheetEngine } from './engine';
 
 type Appearance = 'light' | 'dark' | 'system';
@@ -106,6 +107,7 @@ export default function App() {
   const [targetCellVal, setTargetCellVal] = useState('1000');
   const [changingCellAddr, setChangingCellAddr] = useState('B2');
   const [goalSeekResult, setGoalSeekResult] = useState<string>('');
+  const [solving, setSolving] = useState(false);
 
   // Scenario Manager State
   const [scenarioName, setScenarioName] = useState('');
@@ -229,6 +231,7 @@ export default function App() {
         );
         engine.current = controller;
         setEngineReady(true);
+        changed();
       })
       .catch(e => setError(`Could not start the spreadsheet engine: ${String(e)}`));
     return () => {
@@ -406,8 +409,8 @@ export default function App() {
   const activeCharts: SheetChart[] = (book.workbook.charts || []).filter(c => c.sheetId === activeSheetId);
 
   function handleCreateChart() {
-    const range = engine.current?.api.getActiveWorkbook()?.getActiveRange();
-    const rangeStr = range ? range.getA1Notation() : chartRange;
+    const rangeStr = chartRange.trim();
+    try { parseRange(rangeStr); } catch (e) { setError(String(e)); return; }
 
     const newChart: SheetChart = {
       id: crypto.randomUUID(),
@@ -464,7 +467,7 @@ export default function App() {
 
   function handleCreatePivot() {
     try {
-      const sheet = activeSheet;
+      const sheet = snapshot().workbook.sheets[activeSheetId];
       const pivotSpec: SheetPivot = {
         id: crypto.randomUUID(),
         name: `Pivot_${Date.now()}`,
@@ -495,6 +498,7 @@ export default function App() {
       };
 
       writePivotToSheet(newSheet, result, 0, 0);
+      pivotSpec.targetSheetId = newSheetId;
 
       const next = snapshot();
       next.workbook.sheetOrder.push(newSheetId);
@@ -504,6 +508,7 @@ export default function App() {
 
       current.current = next;
       setBook(next);
+      setSession(value => value + 1);
       changed();
       setModal('');
       setNotice(`Created pivot sheet "${newSheetName}" with ${result.rows.length} rows.`);
@@ -513,26 +518,41 @@ export default function App() {
   }
 
   // --- What-If Analysis / Goal Seek ---
-  function handleGoalSeek() {
+  async function handleGoalSeek() {
+    if (solving) return;
+    let restore: (() => void) | undefined;
     try {
-      const targetValNum = parseFloat(targetCellVal);
-      if (isNaN(targetValNum)) throw new Error('Enter a valid numerical target value.');
+      const targetValNum = Number(targetCellVal);
+      if (!targetCellVal.trim() || !Number.isFinite(targetValNum)) throw new Error('Enter a valid numerical target value.');
+      const inputAddress = parseA1(changingCellAddr), outputAddress = parseA1(targetCellAddr);
+      if (inputAddress.row === outputAddress.row && inputAddress.col === outputAddress.col) throw new Error('Choose different target and changing cells.');
 
       const activeRange = engine.current?.api.getActiveWorkbook()?.getActiveSheet().getRange(changingCellAddr.toUpperCase());
       const formulaRange = engine.current?.api.getActiveWorkbook()?.getActiveSheet().getRange(targetCellAddr.toUpperCase());
 
       if (!activeRange || !formulaRange) throw new Error('Specify valid cell addresses for target and changing cells.');
 
-      // Mock numerical evaluator using perturbation in grid
-      const initialGuess = parseFloat(String(activeRange.getValue() ?? 0)) || 1;
-
-      const evalFn = (x: number) => {
+      if (!formulaRange.getFormula() || activeRange.getFormula()) throw new Error('The target must contain a formula and the changing cell must contain a numeric input.');
+      const original = activeRange.getValue();
+      if (typeof original !== 'number' || !Number.isFinite(original)) throw new Error('The changing cell must contain a finite number.');
+      restore = () => { activeRange.setValue(original); };
+      setSolving(true);
+      setGoalSeekResult('Calculating…');
+      const formula = engine.current!.api.getFormula();
+      const evalFn = (x: number) => new Promise<number>((resolve, reject) => {
+        let timeout: ReturnType<typeof setTimeout>;
+        const listener = formula.calculationResultApplied(() => {
+          clearTimeout(timeout); listener.dispose();
+          const value = formulaRange.getValue();
+          resolve(typeof value === 'number' ? value : NaN);
+        });
+        timeout = setTimeout(() => { listener.dispose(); reject(new Error('Formula recalculation timed out. Original input restored.')); }, 5000);
         activeRange.setValue(x);
-        return parseFloat(String(formulaRange.getValue() ?? 0)) || 0;
-      };
-
-      const res = runGoalSeek(evalFn, targetValNum, initialGuess);
-      activeRange.setValue(Math.round(res.value * 10000) / 10000);
+        formula.executeCalculation();
+      });
+      const res = await runGoalSeekAsync(evalFn, targetValNum, original);
+      if (!res.success) throw new Error('No solution converged. Original input restored.');
+      restore = undefined;
       changed();
 
       setGoalSeekResult(
@@ -541,7 +561,11 @@ export default function App() {
           : `Goal Seek approximated ${Math.round(res.value * 10000) / 10000}. Check formula bounds.`
       );
     } catch (e) {
+      restore?.();
+      setGoalSeekResult('No result applied.');
       setError(`Goal seek error: ${String(e)}`);
+    } finally {
+      setSolving(false);
     }
   }
 
@@ -549,8 +573,10 @@ export default function App() {
   function handleTextToColumns() {
     try {
       const colIdx = parseInt(splitColIndex, 10) || 0;
-      const sheet = activeSheet;
+      const next = snapshot();
+      const sheet = next.workbook.sheets[activeSheetId];
       const res = textToColumns(sheet, colIdx, splitDelimiter);
+      current.current = next; setBook(next); setSession(value => value + 1);
       changed();
       setModal('');
       setNotice(`Split ${res.rowsAffected} cells into ${res.colsAdded + 1} columns.`);
@@ -561,9 +587,11 @@ export default function App() {
 
   function handleRemoveDuplicates() {
     try {
-      const sheet = activeSheet;
+      const next = snapshot();
+      const sheet = next.workbook.sheets[activeSheetId];
       const used = usedExtent(sheet);
       const res = removeDuplicates(sheet, [0], 1, used.rows);
+      current.current = next; setBook(next); setSession(value => value + 1);
       changed();
       setModal('');
       setNotice(`Removed ${res.removedCount} duplicate rows. ${res.retainedCount} rows kept.`);
@@ -1049,7 +1077,7 @@ export default function App() {
             </span>
           </div>
 
-          <div style={{ position: 'relative', flex: 1, display: 'flex', overflow: 'hidden' }}>
+          <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', overflow: 'hidden' }}>
             <div className="grid-host" ref={host} aria-label="Spreadsheet workspace" />
 
             {/* Embedded Charts Side Drawer */}
@@ -1061,7 +1089,7 @@ export default function App() {
                     <button className="secondary" onClick={() => setModal('addchart')}>
                       <Plus size={14} /> Add Chart
                     </button>
-                    <button className="icon" onClick={() => setShowChartsDrawer(false)}>
+                    <button className="icon" aria-label="Close charts" onClick={() => setShowChartsDrawer(false)}>
                       <X size={16} />
                     </button>
                   </div>
@@ -1339,8 +1367,8 @@ export default function App() {
             <button className="secondary" onClick={() => setModal('')}>
               Close
             </button>
-            <button className="primary" onClick={handleGoalSeek}>
-              Solve
+            <button className="primary" disabled={solving} onClick={() => void handleGoalSeek()}>
+              {solving ? 'Solving…' : 'Solve'}
             </button>
           </div>
         </Modal>

@@ -50,11 +50,14 @@ export function computePivotTable(sheet: Sheet, pivot: SheetPivot): PivotResult 
 
   const rowFields = pivot.rowFields.length > 0 ? pivot.rowFields : [colIndexToName.get(range.startCol)!];
   const valueFields = pivot.valueFields.length > 0 ? pivot.valueFields : [{ field: colIndexToName.get(range.endCol)!, agg: 'SUM' as const }];
+  for (const name of [...rowFields, ...valueFields.map(v => v.field)]) {
+    if (!nameToColIndex.has(name)) throw new Error(`Column header not found: ${name}`);
+  }
 
   // Group records by row key
   const groups = new Map<string, Record<string, any>[]>();
   for (const rec of filteredRecords) {
-    const key = rowFields.map(f => String(rec[f] ?? '(blank)')).join(' | ');
+    const key = JSON.stringify(rowFields.map(f => String(rec[f] ?? '(blank)')));
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(rec);
   }
@@ -77,7 +80,7 @@ export function computePivotTable(sheet: Sheet, pivot: SheetPivot): PivotResult 
 
   // Build rows
   for (const [key, groupRecs] of groups.entries()) {
-    const rowKeyParts = key.split(' | ');
+    const rowKeyParts: string[] = JSON.parse(key);
     const valEntries: number[] = [];
     for (const vf of valueFields) {
       const fieldValues = groupRecs.map(r => r[vf.field]);
@@ -187,6 +190,27 @@ export function runGoalSeek(
   return { success: Math.abs(y1) <= tolerance * 10, value: x1, iterations: maxIterations };
 }
 
+// Formula engines recalculate asynchronously; wait for each result before taking
+// the next secant step instead of reading a stale cached cell value.
+export async function runGoalSeekAsync(evaluator: (x: number) => Promise<number>, target: number, initialGuess = 1) {
+  const evaluate = async (x: number) => {
+    if (!Number.isFinite(x)) throw new Error('The solver produced a non-finite input.');
+    const value = await evaluator(x);
+    if (!Number.isFinite(value)) throw new Error('The target formula must return a finite number.');
+    return value - target;
+  };
+  let x0 = initialGuess, y0 = await evaluate(x0);
+  if (Math.abs(y0) <= 1e-5) return { success: true, value: x0, iterations: 0 };
+  let x1 = x0 + Math.max(0.1, Math.abs(x0) * 0.1), y1 = await evaluate(x1);
+  for (let i = 1; i <= 100; i++) {
+    if (Math.abs(y1) <= 1e-5) return { success: true, value: x1, iterations: i };
+    if (Math.abs(y1 - y0) < 1e-12) break;
+    const next = x1 - y1 * (x1 - x0) / (y1 - y0);
+    x0 = x1; y0 = y1; x1 = next; y1 = await evaluate(x1);
+  }
+  return { success: false, value: x1, iterations: 100 };
+}
+
 /**
  * Text-to-Columns transformation:
  * Splits cell text in colIndex by delimiter into colIndex, colIndex+1, etc.
@@ -198,10 +222,22 @@ export function textToColumns(
   startRow = 0,
   endRow?: number
 ): { rowsAffected: number; colsAdded: number } {
+  if (!Number.isInteger(colIndex) || colIndex < 0 || colIndex >= sheet.columnCount || !delimiter) throw new Error('Choose a valid column and a nonempty delimiter.');
   sheet.cellData ||= {};
-  const lastRow = endRow ?? sheet.rowCount;
+  const lastRow = endRow ?? sheet.rowCount - 1;
   let rowsAffected = 0;
   let maxParts = 1;
+
+  // Preflight the whole selection so a collision never leaves a partial split.
+  for (let r = startRow; r <= lastRow; r++) {
+    const row = sheet.cellData[r], value = row?.[colIndex]?.v;
+    if (value == null) continue;
+    const count = String(value).split(delimiter).length;
+    if (colIndex + count > 16384) throw new Error('Split exceeds the worksheet column limit.');
+    for (let c = colIndex + 1; c < colIndex + count; c++) {
+      if (row[c]?.v != null || row[c]?.f || row[c]?.p) throw new Error('The split would overwrite adjacent data. Choose empty destination columns first.');
+    }
+  }
 
   for (let r = startRow; r <= lastRow; r++) {
     const row = sheet.cellData[r];
@@ -211,6 +247,7 @@ export function textToColumns(
 
     const str = String(cell.v);
     const parts = str.split(delimiter);
+    if (colIndex + parts.length > 16384) throw new Error('Split exceeds the worksheet column limit.');
     if (parts.length > 1) {
       rowsAffected++;
       if (parts.length > maxParts) maxParts = parts.length;
@@ -226,6 +263,7 @@ export function textToColumns(
     }
   }
 
+  sheet.columnCount = Math.max(sheet.columnCount, colIndex + maxParts);
   return { rowsAffected, colsAdded: maxParts - 1 };
 }
 
@@ -248,7 +286,7 @@ export function removeDuplicates(
     const row = sheet.cellData[r];
     if (!row) continue;
 
-    const key = keyCols.map(c => String(row[c]?.v ?? '')).join('___');
+    const key = JSON.stringify(keyCols.map(c => row[c]?.v ?? null));
     if (seen.has(key)) {
       delete sheet.cellData[r];
       removedCount++;

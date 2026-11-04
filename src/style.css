@@ -115,3 +115,14 @@
 .results-box strong {
   color: var(--green);
 }
+
+@media (max-width: 1100px) {
+  .editor-header { flex-wrap: wrap; height: auto; min-height: 65px; padding-block: 10px; gap: 8px; flex-shrink: 0; }
+  .editor-header .editor-actions { width: 100%; margin-left: 0; overflow-x: auto; padding-bottom: 3px; flex-shrink: 0; }
+  .editor-header .editor-actions .secondary { display: inline-flex; flex-shrink: 0; }
+}
+.grid-host { height: 100%; min-height: 0; }
+.charts-drawer { max-width: 100%; }
+/* Univer app root fills the host; its empty portal roots must not create a second viewport. */
+.grid-host > div { height: auto; }
+.grid-host > div:first-child { height: 100%; }

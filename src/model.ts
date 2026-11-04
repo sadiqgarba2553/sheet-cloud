@@ -190,8 +190,8 @@ export function rowColToA1(row: number, col: number): string {
 }
 
 export function parseA1(a1: string): { row: number; col: number } {
-  const match = /^([A-Za-z]+)(\d+)$/.exec(a1.trim());
-  if (!match) return { row: 0, col: 0 };
+  const match = /^([A-Za-z]+)([1-9]\d*)$/.exec(a1.replace(/\$/g, '').trim());
+  if (!match || +match[2] > 1000000 || lettersToCol(match[1]) > 16383) throw new Error('Enter a valid cell address (A1:XFD1000000).');
   return {
     row: parseInt(match[2], 10) - 1,
     col: lettersToCol(match[1]),
@@ -201,12 +201,14 @@ export function parseA1(a1: string): { row: number; col: number } {
 export function parseRange(rangeStr: string): { startRow: number; startCol: number; endRow: number; endCol: number } {
   const cleaned = rangeStr.replace(/\$/g, '').trim();
   const parts = cleaned.split(':');
+  if (parts.length > 2) throw new Error('Enter a single rectangular range.');
   if (parts.length === 1) {
     const pt = parseA1(parts[0]);
     return { startRow: pt.row, startCol: pt.col, endRow: pt.row, endCol: pt.col };
   }
   const p1 = parseA1(parts[0]);
   const p2 = parseA1(parts[1]);
+  if ((Math.abs(p2.row - p1.row) + 1) * (Math.abs(p2.col - p1.col) + 1) > 200000) throw new Error('Choose a range of at most 200,000 cells.');
   return {
     startRow: Math.min(p1.row, p2.row),
     startCol: Math.min(p1.col, p2.col),

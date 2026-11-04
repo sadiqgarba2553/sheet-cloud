@@ -24,7 +24,7 @@ export function ChartView({ chart, sheet, onUpdate, onDelete, onEdit }: ChartVie
   const firstRow = cellData[range.startRow] || {};
   const hasLabelsInCol = range.startCol < range.endCol;
 
-  const dataStartRow = range.hasHeaders ?? true ? range.startRow + 1 : range.startRow;
+  const dataStartRow = range.startRow + 1;
   const dataStartCol = hasLabelsInCol ? range.startCol + 1 : range.startCol;
 
   // Read series names from header row
@@ -51,7 +51,7 @@ export function ChartView({ chart, sheet, onUpdate, onDelete, onEdit }: ChartVie
   // SVG Geometry
   const width = chart.width || 480;
   const height = chart.height || 280;
-  const padding = { top: 40, right: 30, bottom: 50, left: 55 };
+  const padding = { top: 25, right: 30, bottom: 85, left: 55 };
   const plotWidth = Math.max(50, width - padding.left - padding.right);
   const plotHeight = Math.max(50, height - padding.top - padding.bottom);
 
@@ -116,7 +116,7 @@ export function ChartView({ chart, sheet, onUpdate, onDelete, onEdit }: ChartVie
 
       <svg width={width} height={height - 35} viewBox={`0 0 ${width} ${height - 35}`}>
         {/* Gridlines */}
-        {chart.showGrid !== false && (
+        {chart.chartType !== 'pie' && chart.showGrid !== false && (
           <g className="gridlines" stroke="#e2e8f0" strokeDasharray="3 3">
             {[0, 0.25, 0.5, 0.75, 1].map((pct, i) => {
               const y = padding.top + plotHeight * (1 - pct);
@@ -140,14 +140,14 @@ export function ChartView({ chart, sheet, onUpdate, onDelete, onEdit }: ChartVie
         )}
 
         {/* X Axis Baseline */}
-        <line
+        {chart.chartType !== 'pie' && <line
           x1={padding.left}
           y1={zeroY}
           x2={padding.left + plotWidth}
           y2={zeroY}
           stroke="#94a3b8"
           strokeWidth="1.5"
-        />
+        />}
 
         {/* Render Chart Types */}
         {chart.chartType === 'column' && (
@@ -205,13 +205,13 @@ export function ChartView({ chart, sheet, onUpdate, onDelete, onEdit }: ChartVie
                 <g key={rIdx}>
                   {seriesData.map((s, sIdx) => {
                     const val = s.values[rIdx] ?? 0;
-                    const barWidth = ((val - minVal) / rangeSpan) * plotWidth;
+                    const barWidth = Math.abs(val) / rangeSpan * plotWidth;
                     const barY = groupY + sIdx * barHeight;
 
                     return (
                       <rect
                         key={sIdx}
-                        x={padding.left}
+                        x={padding.left + (Math.min(0, val) - minVal) / rangeSpan * plotWidth}
                         y={barY}
                         width={Math.max(1, barWidth)}
                         height={Math.max(2, barHeight - 2)}
@@ -311,6 +311,7 @@ export function ChartView({ chart, sheet, onUpdate, onDelete, onEdit }: ChartVie
                 const sliceColor = PALETTE[idx % PALETTE.length];
 
                 startAngle = endAngle;
+                if (sliceVal >= total && sliceVal > 0) return <circle key={idx} cx={cx} cy={cy} r={r} fill={sliceColor}><title>{labels[idx]}: {val}</title></circle>;
 
                 return (
                   <path key={idx} d={pathD} fill={sliceColor} stroke="#ffffff" strokeWidth="1.5">
@@ -326,7 +327,7 @@ export function ChartView({ chart, sheet, onUpdate, onDelete, onEdit }: ChartVie
         {chart.showLegend !== false && seriesData.length > 0 && (
           <g
             className="chart-legend"
-            transform={`translate(${padding.left}, ${height - 45})`}
+            transform={`translate(${padding.left}, ${height - 60})`}
           >
             {seriesData.map((s, idx) => (
               <g key={idx} transform={`translate(${idx * 110}, 0)`}>

@@ -1,5 +1,5 @@
 import type ExcelJS from 'exceljs';
-import { blankBook, BookRecord, Cell, CellStyle, cellText, Sheet, usedExtent, columnIndex } from './model';
+import { blankBook, BookRecord, Cell, CellStyle, cellText, Sheet, usedExtent, lettersToCol } from './model';
 
 const rgb = (color?: Partial<ExcelJS.Color>) => (color?.argb ? `#${color.argb.slice(-6)}` : undefined);
 const argb = (color?: string) => (color && /^#[0-9a-f]{6}$/i.test(color) ? `FF${color.slice(1)}` : undefined);
@@ -90,7 +90,7 @@ export async function importXlsx(bytes: Uint8Array, filename: string): Promise<B
 
     for (const range of worksheet.model.merges || []) {
       const match = /([A-Z]+)(\d+):([A-Z]+)(\d+)/.exec(range);
-      if (match) sheet.mergeData!.push({ startRow: +match[2] - 1, endRow: +match[4] - 1, startColumn: columnIndex(match[1]), endColumn: columnIndex(match[3]) });
+      if (match) sheet.mergeData!.push({ startRow: +match[2] - 1, endRow: +match[4] - 1, startColumn: lettersToCol(match[1]), endColumn: lettersToCol(match[3]) });
     }
 
     const view = worksheet.views?.find(view => view.state === 'frozen');
@@ -163,7 +163,7 @@ export async function exportXlsx(book: BookRecord): Promise<Uint8Array> {
   return new Uint8Array(await output.xlsx.writeBuffer());
 }
 
-export { columnIndex };
+export { lettersToCol as columnIndex };
 
 export function parseCsv(text: string): string[][] {
   const rows: string[][] = [];

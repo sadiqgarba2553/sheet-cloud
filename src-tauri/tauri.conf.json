@@ -1,9 +1,51 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Sheet Cloud",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "identifier": "com.bluecloud.sheetcloud",
-  "build": { "beforeDevCommand": "npm run dev", "devUrl": "http://127.0.0.1:1430", "beforeBuildCommand": "npm run build", "frontendDist": "../dist" },
-  "app": { "windows": [{ "label": "main", "title": "Sheet Cloud", "width": 1440, "height": 940, "minWidth": 900, "minHeight": 650 }], "security": { "csp": "default-src 'self'; img-src 'self' data: blob:; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; connect-src ipc: http://ipc.localhost", "devCsp": null } },
-  "bundle": { "active": true, "targets": "all", "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"], "category": "Productivity", "shortDescription": "Free local-first spreadsheet editor", "longDescription": "Sheet Cloud by BlueCloud AI Technologies. Development edition with formulas, local storage, editable templates, and basic XLSX compatibility.", "fileAssociations": [{ "ext": ["scloud"], "name": "Sheet Cloud Workbook", "role": "Editor" }] }
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://127.0.0.1:1430",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Sheet Cloud",
+        "width": 1440,
+        "height": 940,
+        "minWidth": 900,
+        "minHeight": 650
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' data: blob:; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; connect-src ipc: http://ipc.localhost",
+      "devCsp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "category": "Productivity",
+    "shortDescription": "Free local-first spreadsheet editor",
+    "longDescription": "Sheet Cloud by BlueCloud AI Technologies. Development edition with formulas, local storage, editable templates, and basic XLSX compatibility.",
+    "fileAssociations": [
+      {
+        "ext": [
+          "scloud"
+        ],
+        "name": "Sheet Cloud Workbook",
+        "role": "Editor"
+      }
+    ]
+  }
 }

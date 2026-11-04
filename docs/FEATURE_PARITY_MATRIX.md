@@ -1,3 +1,5 @@
+> Codex review (4 November 2026): Read [CODEX_VERIFICATION.md](CODEX_VERIFICATION.md) for tested behavior, corrected claims and remaining limits. Earlier source-only claims are not proof of feature parity.
+
 # Sheet Cloud - Feature Parity Matrix
 
 Comprehensive feature parity comparison covering Excel Desktop (M365), Google Sheets, Apple Numbers, LibreOffice Calc, and Sheet Cloud.

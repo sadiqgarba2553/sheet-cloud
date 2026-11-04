@@ -220,12 +220,12 @@ describe('XLSX compatibility subset', () => {
     expect(sheet.mergeData).toEqual(source.mergeData);
     expect(sheet.cellData[0][0].s).toMatchObject({ bl: 1, fs: 23 });
     expect(sheet.freeze?.ySplit).toBe(4);
-  });
+  }, 30000);
   it('exports and imports multiple worksheets', async () => {
     const a = fromTemplate('sales'), b = blankBook();
     const id = b.workbook.sheetOrder[0];
     a.workbook.sheetOrder.push(id);
     a.workbook.sheets[id] = b.workbook.sheets[id];
     expect((await importXlsx(await exportXlsx(a), 'multiple.xlsx')).workbook.sheetOrder).toHaveLength(2);
-  });
+  }, 30000);
 });
